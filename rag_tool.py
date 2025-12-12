@@ -2,8 +2,9 @@ from langchain_core.tools import tool
 import os
 from qdrant_client import QdrantClient
 from langchain_community.embeddings import HuggingFaceEmbeddings
-QDRANT_STORAGE_PATH = "C:\\Users\\RishabhSetiya\\qdrant_local_db"
+import streamlit as st
 
+QDRANT_STORAGE_PATH = "C:\\Users\\RishabhSetiya\\qdrant_local_db"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 COLLECTION_NAME = "github_code_repo"
 # Initialize Embedding Model
@@ -11,9 +12,17 @@ embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 # Initialize Qdrant Client in local mode with persistent storage
 qdrant_client = QdrantClient(path=QDRANT_STORAGE_PATH)
 
+@st.cache_resource
+def load_embeddings():
+    return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+
+@st.cache_resource
+def load_qdrant():
+    return QdrantClient(path=QDRANT_STORAGE_PATH)  # embedded mode
+
 @tool
 def search_code(x: str) -> str:
-    """Search code."""
+    """Whenever any question related to code is asked this tool must be used"""
     result_str = ""
     # 1. Generate the query vector
     print(f"Embedding query: '{x}'")
