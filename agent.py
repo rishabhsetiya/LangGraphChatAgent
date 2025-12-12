@@ -4,7 +4,7 @@ from langgraph.prebuilt import ToolNode
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 from mcp_tools import load_mcp_tools
-from rag_tool import multiply
+from rag_tool import search_code
 from langchain_core.messages import ToolMessage, AIMessage
 from dotenv import load_dotenv
 import os
@@ -28,7 +28,7 @@ def create_graph():
 
     # Tools
     mcp_tools = load_mcp_tools("http://localhost:8080/api/mcp")
-    tools = mcp_tools + [multiply]
+    tools = mcp_tools + [search_code]
 
     llm_with_tools = llm.bind_tools(tools)
 
