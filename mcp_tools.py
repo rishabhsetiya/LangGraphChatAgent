@@ -6,7 +6,6 @@ from langchain_core.tools import StructuredTool
 from typing import Any, Dict, List, Callable
 
 # --- MCP Tool Wrapper ---
-
 def _create_mcp_tool(client: 'MCPClient', tool_info: Dict[str, Any]) -> StructuredTool:
     """Creates a LangChain-compatible StructuredTool from MCP tool information."""
     name = tool_info["name"]
@@ -19,7 +18,6 @@ def _create_mcp_tool(client: 'MCPClient', tool_info: Dict[str, Any]) -> Structur
     # 1. Dynamically create the Pydantic BaseModel
     fields = {}
     for prop_name, prop_data in mcp_schema.get("properties", {}).items():
-
         # Determine Python type
         py_type = int if prop_data.get("type") == "integer" else str
 
@@ -35,16 +33,12 @@ def _create_mcp_tool(client: 'MCPClient', tool_info: Dict[str, Any]) -> Structur
             # Optional with default: Type, Field(default=...)
             fields[prop_name] = (py_type, Field(default=prop_default, description=prop_data.get("description", "")))
         else:
-            # Optional without default: Type | None, None (or Ellipsis, depending on pydantic version)
-            # Simplest form for optional fields:
             fields[prop_name] = (py_type | None, None)
 
-            # Create the Pydantic class dynamically
     DynamicArgsModel = create_model(f"{name}_args", **fields, __base__=BaseModel)
 
     # 2. Define the execution function
     def mcp_executor(**kwargs: Any) -> str:
-        """Dynamically generated tool executor for MCP."""
         return client.call_tool(name, kwargs)
 
     # 3. Use StructuredTool.from_function with the explicit schema
@@ -56,17 +50,10 @@ def _create_mcp_tool(client: 'MCPClient', tool_info: Dict[str, Any]) -> Structur
         handle_tool_errors=True
     )
 
-
-# --- load_mcp_tools function ---
-
 def load_mcp_tools(base_url: str) -> List[Callable]:
     """
     Connects to the MCP server, lists tools, and returns a list of
     LangChain-compatible tool functions.
-
-    NOTE: The client object needs to be managed properly (e.g., using a
-    global or passed explicitly if the client is not thread-safe or needs
-    connection pooling). For simplicity, we initialize it here.
     """
     print(f"Loading tools from MCP server at {base_url}...")
     client = MCPClient(base_url)
@@ -80,14 +67,8 @@ def load_mcp_tools(base_url: str) -> List[Callable]:
         print(f"WARNING: Could not load tools from MCP: {e}")
         return []
     finally:
-        # NOTE: closing the client here would break the tool wrapper,
-        # as it relies on the client. In a real app, the client must
-        # be kept alive, e.g., by making it a singleton or managed resource.
-        # For this example, we will let it leak or require the user to manage it.
         pass
 
-
-# --- NEW/MODIFIED MCPClient class ---
 class MCPClient:
 
     def __init__(self, base_url: str):
@@ -188,8 +169,6 @@ class MCPClient:
             raise RuntimeError(data["error"])
 
         return data.get("result", data)
-
-    # -------- MCP API (Uses the updated _request method) --------
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """List tools exposed by the MCP server"""
