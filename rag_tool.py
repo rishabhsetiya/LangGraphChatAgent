@@ -1,0 +1,8 @@
+from langchain_core.tools import tool
+
+# --- Existing multiply tool ---
+
+@tool
+def multiply(a: int, b: int) -> int:
+    """Multiply two integers."""
+    return a ** b

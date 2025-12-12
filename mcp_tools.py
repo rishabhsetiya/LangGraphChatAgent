@@ -1,26 +1,9 @@
-OPENAI_API_KEY = ''
-MODEL_ID = 'llama-3.1-8b-instant'
-
-# tools.py
-from langchain_core.tools import tool, StructuredTool
-from typing import Any, Dict, List, Callable, TypedDict, Annotated
 import httpx
 import itertools
 import json
 from pydantic import BaseModel, create_model, Field
-from langgraph.graph import StateGraph, add_messages, END
-from langgraph.prebuilt import ToolNode
-from langchain_core.messages import BaseMessage
-from langchain_openai import ChatOpenAI
-
-
-# --- Existing multiply tool ---
-
-@tool
-def multiply(a: int, b: int) -> int:
-    """Multiply two integers."""
-    return a ** b
-
+from langchain_core.tools import StructuredTool
+from typing import Any, Dict, List, Callable
 
 # --- MCP Tool Wrapper ---
 
@@ -148,9 +131,6 @@ class MCPClient:
         else:
             raise RuntimeError("MCP server did not return the required 'Mcp-Session-Id' header during initialization.")
 
-        # --- 2. Send 'notifications/initialized' request ---
-        # This is mandatory for the handshake, but has no params
-        # self._request("notifications/initialized")
         print("MCP session successfully initialized.")
 
     def _raw_request(self, method: str, params: Dict[str, Any] | None = None) -> httpx.Response:
@@ -234,117 +214,3 @@ class MCPClient:
 
     def close(self):
         self.client.close()
-
-# agent.py
-
-class AgentState(TypedDict):
-    messages: Annotated[list[BaseMessage], add_messages]
-
-def create_graph():
-    # Groq via OpenAI-compatible API
-    llm = ChatOpenAI(
-        model=MODEL_ID,
-        base_url="https://api.groq.com/openai/v1",
-        api_key=OPENAI_API_KEY,
-        temperature=0,
-    )
-
-    # Tools
-    mcp_tools = load_mcp_tools("http://localhost:8080/api/mcp")
-    tools = mcp_tools + [multiply]
-
-    llm_with_tools = llm.bind_tools(tools)
-
-    # Nodes
-    def llm_node(state: AgentState):
-        response = llm_with_tools.invoke(state["messages"])
-        return {"messages": state["messages"] + [response]}
-
-    tool_node = ToolNode(tools)
-
-    def route(state: AgentState):
-        last = state["messages"][-1]
-        if isinstance(last, ToolMessage):
-            return "llm"
-        if isinstance(last, AIMessage) and last.tool_calls:
-            return "tools"
-        return END
-
-    # Graph
-    graph = StateGraph(AgentState)
-    graph.add_node("llm", llm_node)
-    graph.add_node("tools", tool_node)
-
-    graph.set_entry_point("llm")
-    graph.add_conditional_edges(
-        "llm",
-        route,
-        {
-            "tools": "tools",
-            END: END,
-        },
-    )
-    graph.add_edge("tools", "llm")
-
-    return graph.compile()
-
-# app.py
-
-import streamlit as st
-from langchain_core.messages import HumanMessage, ToolMessage, AIMessage
-
-st.set_page_config(page_title="LangGraph + MCP + Groq")
-
-st.title("LangGraph + MCP (HTTP) + Groq")
-
-# Initialize graph if not in session state
-if "graph" not in st.session_state:
-    try:
-        # Load the graph (this executes the time-consuming tool loading)
-        st.session_state.graph = create_graph()
-        st.success("Agent graph initialized with tools.")
-    except Exception as e:
-        st.error(f"Failed to initialize agent graph. Is the MCP server running? Error: {e}")
-        st.session_state.graph = None # Prevent subsequent runs
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# --- Display Messages (Always runs on page load) ---
-for msg in st.session_state.messages:
-
-    # Check if the message is a user message OR an AI message with final content
-    is_user_message = msg.type == "human"
-    is_final_ai_response = msg.type == "ai" and msg.content and not msg.tool_calls
-
-    # We will ONLY display the HumanMessage and the final, content-filled AIMessage
-    if is_user_message or is_final_ai_response:
-        # Determine the role for the chat UI
-        role = "user" if msg.type == "human" else "assistant"
-
-        # Use st.chat_message for a nicer UI
-        with st.chat_message(role):
-            # Display the content
-            st.markdown(msg.content)
-
-# --- Chat Input / Run Logic ---
-if st.session_state.graph:
-    # Use the chat-friendly input widget
-    prompt = st.chat_input("Ask a question about employees...")
-
-    if prompt:
-        # 1. Append the user message to the display list
-        st.session_state.messages.append(HumanMessage(content=prompt))
-
-        # 2. Invoke the graph
-        # This will run the agent logic based on the *updated* state
-        with st.spinner("Thinking..."):
-            result = st.session_state.graph.invoke(
-                {"messages": st.session_state.messages}
-            )
-
-        # 3. Update the session state with the final result messages
-        st.session_state.messages = result["messages"]
-
-        # Rerun the Streamlit app to update the display with new messages
-        st.rerun()
