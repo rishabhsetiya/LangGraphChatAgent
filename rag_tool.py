@@ -3,10 +3,13 @@ import os
 from qdrant_client import QdrantClient
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import streamlit as st
+from dotenv import load_dotenv
 
-QDRANT_STORAGE_PATH = "C:\\Users\\RishabhSetiya\\qdrant_local_db"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-COLLECTION_NAME = "github_code_repo"
+load_dotenv()
+
+QDRANT_STORAGE_PATH = os.getenv("QDRANT_STORAGE_PATH")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 # Initialize Embedding Model
 embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 # Initialize Qdrant Client in local mode with persistent storage
@@ -42,11 +45,10 @@ def search_code(x: str) -> str:
 
         # Retrieve the metadata (payload)
         source_file = result.payload.get('source', 'N/A')
-        repo_name = result.payload.get('repo_name', 'N/A')
         code_content = result.payload.get('text', 'No content')
 
         result_str = result_str + f"\nResult #{i + 1} (Score: {result.score:.4f})"
-        result_str = result_str + f"  Repo: **{repo_name}** | File: **{source_file.split(os.path.sep)[-1]}**"
+        result_str = result_str + f"File: **{source_file.split(os.path.sep)[-1]}**"
         result_str = result_str + "  Code Snippet:"
 
         snippet_display = code_content.split('\n')

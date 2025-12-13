@@ -9,7 +9,7 @@ from langchain_core.messages import ToolMessage, AIMessage
 from dotenv import load_dotenv
 import os
 
-load_dotenv()  # loads .env file
+load_dotenv()
 
 MODEL_ID = os.getenv("MODEL_ID")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
