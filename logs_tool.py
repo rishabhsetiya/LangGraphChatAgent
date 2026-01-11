@@ -1,11 +1,17 @@
+import os
+
 from langchain_core.tools import tool
 import httpx
 import json
 from typing import Optional
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # New Relic API Configuration
-NEW_RELIC_API_KEY = "NRAK-UL2MHU311Z8F954U31ZDJXBTA66"
-NEW_RELIC_ACCOUNT_ID = 7527127
+NEW_RELIC_API_KEY = os.getenv("NEW_RELIC_API_KEY")
+NEW_RELIC_ACCOUNT_ID = os.getenv("NEW_RELIC_ACCOUNT_ID")
 NEW_RELIC_GRAPHQL_URL = "https://api.newrelic.com/graphql"
 
 @tool
