@@ -4,7 +4,6 @@ from langchain_core.tools import tool
 import httpx
 import json
 from typing import Optional
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
